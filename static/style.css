@@ -1,0 +1,22 @@
+
+body{
+    font-family: Arial, Helvetica, sans-serif;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.quote{
+    font-family: Arial;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    border-radius: 5px;
+    padding: 2px 16px;
+    display: inline-block;
+}
+
+.author{
+    font-style: italic;
+}
+
+.submit-quote{
+    padding-top: 10px;
+}
