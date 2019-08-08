@@ -8,6 +8,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate rusqlite;
 
+use rocket::data::{Data, DataStream};
 use rocket_contrib::templates::Template;
 use rocket_contrib::serve::StaticFiles;
 
@@ -17,6 +18,7 @@ use std::collections::HashMap;
 use rusqlite::types::ToSql;
 use rusqlite::{Connection, Result, NO_PARAMS};
 
+use std::io::{Read};
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -34,12 +36,16 @@ impl Quote {
     }
 }
 
+fn create_connection(db_name: &str) -> Connection {
+    Connection::open(db_name).expect("Failed to open database")
+}
+
 /// Query database for all quotes
 /// 
 /// # Panics
 /// Panics on failure to open or read database
 fn get_quotes() -> Vec<Quote>{
-    let conn = Connection::open("test.db").expect("Failed to open database");
+    let conn = create_connection("test.db");
     
     // query all quotes. We assume that the quote's table exists
     let mut stmt = conn.prepare("SELECT * FROM quotes")
@@ -75,19 +81,48 @@ fn index() -> Template {
     return Template::render("index", &hm);
 }
 
-#[post("/newquote")]
-fn new_quote() {
-    //TODO get body of the POST request
+/// Route for handling submission of new quotes
+/// 
+/// This route accepts post requests that contain a body in the following format:
+/// {
+///     text: "text",
+///     author: "author"
+/// }
+/// 
+/// The JSON is processed into a Quote struct and then added to the database
+#[post("/newquote", data="<json>")]
+fn new_quote(json: Data) {
+    
+    // read the body of the request into a string
+    let mut json_str = String::new();
+    match json.open().read_to_string(&mut json_str) {
+        Err(e) => {
+            println!("Failed to read body of POST request.");
+            return
+        },
+        Ok(o) => println!("New quote via POST: {}", json_str),
+    };
+
+    // deserialize into Quote struct
+    let q: Quote = serde_json::from_str(&json_str).expect("Unable to parse body of request");
 
     // insert into database
+    let conn = create_connection("test.db");
+    let mut stmt = conn.prepare("INSERT INTO quotes (quote, author) VALUES (?1, ?2)").unwrap();
+    stmt.execute(params![&q.text, &q.author]).expect("Failed to insert quote into database");
 }
-
+/*
+#[get("/filter")]
+fn filter_quote() -> Template {
+    Template.
+}
+*/
 fn main() {
 
     let _a = get_quotes();
     
     rocket::ignite().attach(Template::fairing())
-        .mount("/", routes![index]) // standard routes 
+        .mount("/", routes![index, new_quote]) // standard routes 
         .mount("/static", StaticFiles::from("static")) // route for static content
         .launch();
 }
