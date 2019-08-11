@@ -74,11 +74,11 @@ fn index() -> Template {
     // a quote serializes to {"text":"text", "author":"author"}
     // by adding it to a hashmap, we get {"quotes": [{"text":"text", "author":"author"}]}
     // which is what we need to use for the templating engine
-    let mut hm = HashMap::new();
-    hm.insert("quotes", quotes);
+    let mut context = HashMap::new();
+    context.insert("quotes", quotes);
     
     // render the template with the given context
-    return Template::render("index", &hm);
+    return Template::render("index", &context);
 }
 
 /// Route for handling submission of new quotes
@@ -96,11 +96,11 @@ fn new_quote(json: Data) {
     // read the body of the request into a string
     let mut json_str = String::new();
     match json.open().read_to_string(&mut json_str) {
-        Err => {
+        Err(_) => {
             println!("Failed to read body of POST request.");
             return
         },
-        Ok => println!("New quote via POST: {}", json_str),
+        Ok(_) => println!("New quote via POST: {}", json_str),
     };
 
     // deserialize into Quote struct
@@ -116,21 +116,46 @@ fn new_quote(json: Data) {
 fn submit_quote() -> Template {
     let context: HashMap<i32,i32> = HashMap::new();
 
-    return Template::render("submitquote", context);
+    return Template::render("submitquote", &context);
 }
-/*
-#[get("/filter")]
-fn filter_quote() -> Template {
-    Template.
+
+#[get("/filter/name/<name>")]
+fn filter_name(name: String) -> Template {
+    let conn = create_connection("test.db");
+
+    // create the pattern matching string for the LIKE
+    let name = format!("%{}%", name);
+
+    //println!("{}", name);
+
+    let mut stmt = conn.prepare("SELECT * FROM quotes WHERE author LIKE ?")
+        .expect("Error reading from quotes. Check if the database exists.");
+    
+    // get an iterator over Result<Quote> (required by rusqlite)
+    let quote_iter = stmt.query_map(params![&name], |row|
+        Ok(Quote {
+            text: row.get(0).unwrap(),
+            author: row.get(1).unwrap()
+        })
+    ).expect("Error reading from quotes. Check if the database exists.");
+
+    // convert iterator into vector
+    let quotes: Vec<Quote> = quote_iter.map(|r| r.unwrap()).collect();
+
+    let mut context = HashMap::new();
+    context.insert("quotes", quotes);
+
+    
+    Template::render("index", &context)
 }
-*/
+
 fn main() {
 
     let _a = get_quotes();
     
     rocket::ignite()
         .attach(Template::fairing())
-        .mount("/", routes![index, submit_quote, new_quote]) // standard routes 
+        .mount("/", routes![index, submit_quote, new_quote, filter_name]) // standard routes 
         .mount("/static", StaticFiles::from("static")) // route for static content
         .launch();
 }
