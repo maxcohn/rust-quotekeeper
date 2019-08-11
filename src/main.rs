@@ -96,11 +96,11 @@ fn new_quote(json: Data) {
     // read the body of the request into a string
     let mut json_str = String::new();
     match json.open().read_to_string(&mut json_str) {
-        Err(e) => {
+        Err => {
             println!("Failed to read body of POST request.");
             return
         },
-        Ok(o) => println!("New quote via POST: {}", json_str),
+        Ok => println!("New quote via POST: {}", json_str),
     };
 
     // deserialize into Quote struct
@@ -110,6 +110,13 @@ fn new_quote(json: Data) {
     let conn = create_connection("test.db");
     let mut stmt = conn.prepare("INSERT INTO quotes (quote, author) VALUES (?1, ?2)").unwrap();
     stmt.execute(params![&q.text, &q.author]).expect("Failed to insert quote into database");
+}
+
+#[get("/submitquote")]
+fn submit_quote() -> Template {
+    let context: HashMap<i32,i32> = HashMap::new();
+
+    return Template::render("submitquote", context);
 }
 /*
 #[get("/filter")]
@@ -121,8 +128,9 @@ fn main() {
 
     let _a = get_quotes();
     
-    rocket::ignite().attach(Template::fairing())
-        .mount("/", routes![index, new_quote]) // standard routes 
+    rocket::ignite()
+        .attach(Template::fairing())
+        .mount("/", routes![index, submit_quote, new_quote]) // standard routes 
         .mount("/static", StaticFiles::from("static")) // route for static content
         .launch();
 }
