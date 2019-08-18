@@ -96,7 +96,9 @@ fn filter_text(text: String) -> Template {
 }
 
 fn main() {
-    query::check_for_table("test.db");
+    // check to make sure the given table exists
+    query::check_for_table();
+
     rocket::ignite()
         .attach(Template::fairing())
         .mount("/", routes![index, submit_quote, new_quote, filter_name, filter_text]) // standard routes 
