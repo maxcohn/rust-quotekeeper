@@ -1,26 +1,21 @@
-#![feature(proc_macro_hygiene, decl_macro)]
 
-#[macro_use] extern crate rocket;
 #[macro_use] extern crate rusqlite;
-
+#[macro_use] extern crate tera;
 
 mod query;
 mod quote;
 use quote::Quote;
 
-use rocket::data::{Data};
-use rocket_contrib::templates::Template;
-use rocket_contrib::serve::StaticFiles;
-
+use actix_web::{web, App, HttpServer, Responder, Error, HttpResponse, HttpRequest};
+//use tera;
 use std::collections::HashMap;
 use std::io::{Read};
+use actix_web::http::StatusCode;
 
 
-
-
-
-#[get("/")]
-fn index() -> Template {
+//#[get("/")]
+fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
+    /*
     // create a vector of all the quotes
     let quotes = query::get_quotes();
 
@@ -35,6 +30,13 @@ fn index() -> Template {
     
     // render the template with the given context
     return Template::render("index", &context);
+    */
+    let mut ctx = tera::Context::new();
+    ctx.insert("quotes", &query::get_quotes());
+
+    let page = tmpl.render("index.html.tera", &ctx).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(page))
 }
 
 /// Route for handling submission of new quotes
@@ -46,7 +48,8 @@ fn index() -> Template {
 /// }
 /// 
 /// The JSON is processed into a Quote struct and then added to the database
-#[post("/newquote", data="<json>")]
+//#[post("/newquote", data="<json>")]
+/*
 fn new_quote(json: Data) {
     
     // read the body of the request into a string
@@ -66,42 +69,50 @@ fn new_quote(json: Data) {
     query::insert_quote(q);
 }
 
-#[get("/submitquote")]
+//#[get("/submitquote")]
 fn submit_quote() -> Template {
     let context: HashMap<i32,i32> = HashMap::new();
 
     return Template::render("submitquote", &context);
 }
 
-#[get("/filter/name/<name>")]
-fn filter_name(name: String) -> Template {
-    let quotes = query::filter_name(name);
 
-    let mut context = HashMap::new();
-    context.insert("quotes", quotes);
-
-    
-    Template::render("index", &context)
-}
-
-#[get("/filter/text/<text>")]
+//#[get("/filter/text/<text>")]
 fn filter_text(text: String) -> Template {
-    
+
     let quotes = query::filter_text(text);
     let mut context = HashMap::new();
     context.insert("quotes", quotes);
 
-    
+
     Template::render("index", &context)
 }
+*/
+
+fn filter_name(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpResponse {
+    let name = path.0.clone();
+
+    let mut ctx = tera::Context::new();
+    ctx.insert("quotes", &query::filter_name(name));
+
+    let page = tmpl.render("index.html.tera", &ctx).unwrap();
+
+    HttpResponse::Ok().content_type("text/html").body(page)
+}
+
 
 fn main() {
     // check to make sure the given table exists
     query::check_for_table();
 
-    rocket::ignite()
-        .attach(Template::fairing())
-        .mount("/", routes![index, submit_quote, new_quote, filter_name, filter_text]) // standard routes 
-        .mount("/static", StaticFiles::from("static")) // route for static content
-        .launch();
+    HttpServer::new(|| {
+        let tera = compile_templates!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*"));
+
+        App::new()
+            .data(tera)
+            .service(web::resource("/").route(web::get().to(index)))
+            .service(web::resource("/filter/name/{name}").route(web::get().to(filter_name)))
+
+    }).bind("127.0.0.1:8003").unwrap().run();;
+
 }
