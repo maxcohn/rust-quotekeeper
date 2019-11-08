@@ -6,7 +6,10 @@ mod query;
 mod quote;
 use quote::Quote;
 
-use actix_web::{web, App, HttpServer, Responder, Error, HttpResponse, HttpRequest};
+use actix_web::{
+    web, App, HttpServer, Responder, Error, HttpResponse, HttpRequest,
+};
+use actix_files;
 //use tera;
 use std::collections::HashMap;
 use std::io::{Read};
@@ -100,7 +103,6 @@ fn filter_name(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpR
     HttpResponse::Ok().content_type("text/html").body(page)
 }
 
-
 fn main() {
     // check to make sure the given table exists
     query::check_for_table();
@@ -110,9 +112,10 @@ fn main() {
 
         App::new()
             .data(tera)
-            .service(web::resource("/").route(web::get().to(index)))
-            .service(web::resource("/filter/name/{name}").route(web::get().to(filter_name)))
+            .service(actix_files::Files::new("/static", "./static"))
+            .route("/", web::get().to(index))
+            .route("/filter/name/{name}",web::get().to(filter_name))
 
-    }).bind("127.0.0.1:8003").unwrap().run();;
+    }).bind("127.0.0.1:8003").unwrap().run();
 
 }
