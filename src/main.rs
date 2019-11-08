@@ -18,25 +18,13 @@ use actix_web::http::StatusCode;
 
 //#[get("/")]
 fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
-    /*
-    // create a vector of all the quotes
-    let quotes = query::get_quotes();
-
-    // add them to a hashmap so we can serialize it as json with a key of "quotes"
-    // and value of our list of quote objects
-
     // a quote serializes to {"text":"text", "author":"author"}
-    // by adding it to a hashmap, we get {"quotes": [{"text":"text", "author":"author"}]}
+    // by adding it to a context, we get {"quotes": [{"text":"text", "author":"author"}]}
     // which is what we need to use for the templating engine
-    let mut context = HashMap::new();
-    context.insert("quotes", quotes);
-    
-    // render the template with the given context
-    return Template::render("index", &context);
-    */
     let mut ctx = tera::Context::new();
     ctx.insert("quotes", &query::get_quotes());
 
+    // render the template with the current context
     let page = tmpl.render("index.html.tera", &ctx).unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(page))
@@ -51,46 +39,23 @@ fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
 /// }
 /// 
 /// The JSON is processed into a Quote struct and then added to the database
-//#[post("/newquote", data="<json>")]
-/*
-fn new_quote(json: Data) {
-    
-    // read the body of the request into a string
-    let mut json_str = String::new();
-    match json.open().read_to_string(&mut json_str) {
-        Err(_) => {
-            println!("Failed to read body of POST request.");
-            return
-        },
-        Ok(_) => println!("New quote via POST: {}", json_str),
-    };
+fn new_quote(json: web::Json<Quote>) -> HttpResponse {
+    query::insert_quote(json.into_inner());
 
-    // deserialize into Quote struct
-    let q: Quote = serde_json::from_str(&json_str).expect("Unable to parse body of request");
-
-    // insert into database
-    query::insert_quote(q);
+    HttpResponse::new(StatusCode::from_u16(200).unwrap())
 }
 
-//#[get("/submitquote")]
-fn submit_quote() -> Template {
-    let context: HashMap<i32,i32> = HashMap::new();
+fn filter_text(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpResponse {
+    let text = path.0.clone();
 
-    return Template::render("submitquote", &context);
+    let mut ctx = tera::Context::new();
+    ctx.insert("quotes", &query::filter_text(text));
+
+    let page = tmpl.render("index.html.tera", &ctx).unwrap();
+
+    HttpResponse::Ok().content_type("text/html").body(page)
 }
 
-
-//#[get("/filter/text/<text>")]
-fn filter_text(text: String) -> Template {
-
-    let quotes = query::filter_text(text);
-    let mut context = HashMap::new();
-    context.insert("quotes", quotes);
-
-
-    Template::render("index", &context)
-}
-*/
 
 fn filter_name(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpResponse {
     let name = path.0.clone();
@@ -115,6 +80,9 @@ fn main() {
             .service(actix_files::Files::new("/static", "./static"))
             .route("/", web::get().to(index))
             .route("/filter/name/{name}",web::get().to(filter_name))
+            .route("/filter/text/{text}", web::get().to(filter_text))
+            .route("/newquote", web::post().to(new_quote))
+            .route("/submitquote", web::get().to(|| actix_files::NamedFile::open("templates/submitquote.html")))
 
     }).bind("127.0.0.1:8003").unwrap().run();
 
