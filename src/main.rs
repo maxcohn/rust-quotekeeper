@@ -7,16 +7,14 @@ mod quote;
 use quote::Quote;
 
 use actix_web::{
-    web, App, HttpServer, Responder, Error, HttpResponse, HttpRequest,
+    web, App, HttpServer, Error, HttpResponse,
 };
 use actix_files;
-//use tera;
-use std::collections::HashMap;
-use std::io::{Read};
+
 use actix_web::http::StatusCode;
 
 
-//#[get("/")]
+/// Load and output all quotes
 fn index(tmpl: web::Data<tera::Tera>) -> Result<HttpResponse, Error> {
     // a quote serializes to {"text":"text", "author":"author"}
     // by adding it to a context, we get {"quotes": [{"text":"text", "author":"author"}]}
@@ -45,6 +43,7 @@ fn new_quote(json: web::Json<Quote>) -> HttpResponse {
     HttpResponse::new(StatusCode::from_u16(200).unwrap())
 }
 
+/// Filters output page based on quote text
 fn filter_text(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpResponse {
     let text = path.0.clone();
 
@@ -56,7 +55,7 @@ fn filter_text(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpR
     HttpResponse::Ok().content_type("text/html").body(page)
 }
 
-
+/// Filters output page based on quote author's name
 fn filter_name(tmpl: web::Data<tera::Tera>, path: web::Path<(String,)>) -> HttpResponse {
     let name = path.0.clone();
 
@@ -84,6 +83,7 @@ fn main() {
             .route("/newquote", web::post().to(new_quote))
             .route("/submitquote", web::get().to(|| actix_files::NamedFile::open("templates/submitquote.html")))
 
-    }).bind("127.0.0.1:8003").unwrap().run();
+    }).bind("127.0.0.1:8003").expect("Failed to bind socket")
+        .run().expect("Failed to start server");
 
 }

@@ -1,6 +1,8 @@
 
 
 use crate::quote::Quote;
+use rand::thread_rng;
+use rand::seq::SliceRandom;
 
 use rusqlite::{Connection, NO_PARAMS};
 
@@ -27,10 +29,19 @@ pub fn get_quotes() -> Vec<Quote>{
     ).expect("Error reading from quotes. Check if the database exists.");
 
     // convert iterator into vector
-    quote_iter.map(|r| r.unwrap()).collect()
+    let mut quotes: Vec<Quote> = quote_iter.map(|r| r.unwrap()).collect();
+
+    // randomize quote order
+    quotes.shuffle(&mut thread_rng());
+
+    quotes
 }
 
 /// Query database for all quotes that contain the given text
+///
+/// # Arguments
+///
+/// * `text` - Text to filter by
 pub fn filter_text(text: String) -> Vec<Quote>{
     let conn = create_connection(DB_NAME);
 
@@ -51,10 +62,19 @@ pub fn filter_text(text: String) -> Vec<Quote>{
     ).expect("Error reading from quotes. Check if the database exists.");
 
     // convert iterator into vector
-    quote_iter.map(|r| r.unwrap()).collect()
+    let mut quotes: Vec<Quote> = quote_iter.map(|r| r.unwrap()).collect();
+
+    // randomize quote order
+    quotes.shuffle(&mut thread_rng());
+
+    quotes
 }
 
 /// Query the database for all quotes that contain the given text
+///
+/// # Arguments
+///
+/// * `name` - Name to filter by
 pub fn filter_name(name: String) -> Vec<Quote> {
     let conn = create_connection(DB_NAME);
 
@@ -75,7 +95,12 @@ pub fn filter_name(name: String) -> Vec<Quote> {
     ).expect("Error reading from quotes. Check if the database exists.");
 
     // convert iterator into vector
-    quote_iter.map(|r| r.unwrap()).collect()
+    let mut quotes: Vec<Quote> = quote_iter.map(|r| r.unwrap()).collect();
+
+    // randomize quote order
+    quotes.shuffle(&mut thread_rng());
+
+    quotes
 }
 
 /// Insert the given Quote struct into the database
@@ -104,7 +129,7 @@ pub fn check_for_table() {
     // if the 'quotes' table doens't exist, create it
     if count == 0 {
         conn.execute("CREATE TABLE quotes (quote TEXT, author TEXT)", NO_PARAMS)
-            .expect("Failed to createa 'quotes' table.");
+            .expect("Failed to create a 'quotes' table.");
     }
 
 }
